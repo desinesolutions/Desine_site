@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>DESINE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  margin:0;
+  background:#0f0f0f;
+  color:white;
+  font-family:sans-serif;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  text-align:center;
+}
+h1 { font-size:40px; }
+p { color:#aaa; }
+</style>
+</head>
+
+<body>
+<div>
+  <h1>DESINE</h1>
+  <p>We build high-converting websites</p>
+  <p>Launching Soon 🚀</p>
+  <p>desine@desine.in</p>
+</div>
+</body>
+</html>
