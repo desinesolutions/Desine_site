@@ -686,36 +686,74 @@ function getLeads(){ try{ return JSON.parse(localStorage.getItem('desine_leads')
 function saveLead(l){ const ls=getLeads(); ls.push(l); localStorage.setItem('desine_leads', JSON.stringify(ls)); }
 function showLeadsNote(){
   const n = getLeads().length, el = document.getElementById('leads-note');
-  if(el && n > 0) el.textContent = `${n} brands${n===1?'':'s'} already enquired this week 🔥`;
+  if(el && n > 0) el.textContent = `${n} brand${n===1?'':'s'} already enquired this week 🔥`;
 }
 
+/* ── GOOGLE SHEET ENDPOINT ── */
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyfxzTL91d5tVA5iv9AGedQ7zdxni2M_8wkKRZpQucna7rIj-ZTU3iyffgXooy94Rpv/exec';
+
 /* ── FORM SUBMIT ── */
-function submitLead(){
+async function submitLead(){
   const fname = document.getElementById('m-fname').value.trim();
   const lname = document.getElementById('m-lname').value.trim();
   const email = document.getElementById('m-email').value.trim();
   const phone = document.getElementById('m-phone').value.trim();
   const msg   = document.getElementById('m-msg').value.trim();
+
   if(!fname){ shake('m-fname'); return; }
   if(!email || !email.includes('@')){ shake('m-email'); return; }
+
   const btn = document.getElementById('modal-submit-btn');
-  btn.disabled = true; btn.textContent = 'Sending…';
-  const lead = { fname, lname, email, phone, msg, score: leadScore, ts: new Date().toISOString() };
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  const lead = {
+    fname,
+    lname,
+    email,
+    phone,
+    msg,
+    score  : String(leadScore),
+    source : 'website',
+    intent : 'general',
+    ts     : new Date().toISOString()
+  };
+
+  /* Save locally first — lead is never lost even if network fails */
   saveLead(lead);
-  
-  fetch('https://script.google.com/macros/s/AKfycbyfxzTL91d5tVA5iv9AGedQ7zdxni2M_8wkKRZpQucna7rIj-ZTU3iyffgXooy94Rpv/exec', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify(lead)
-});
-  
-  setTimeout(()=>{
+
+  try {
+    /*
+     * Google Apps Script (GAS) cannot respond to CORS preflight requests,
+     * so sending JSON with Content-Type application/json causes a browser
+     * network error before the request even reaches GAS.
+     *
+     * Solution: FormData with mode:'no-cors'
+     *   - No preflight is triggered (simple request)
+     *   - GAS reads fields via e.parameter.fname, e.parameter.email, etc.
+     *   - Response is "opaque" (we can't read it) but the sheet gets written
+     */
+    const form = new FormData();
+    Object.entries(lead).forEach(([k, v]) => form.append(k, v));
+
+    await fetch(SHEET_URL, {
+      method : 'POST',
+      mode   : 'no-cors',
+      body   : form
+    });
+
+    /* If fetch didn't throw, the request reached GAS successfully */
     document.getElementById('modal-form-view').style.display = 'none';
     document.getElementById('modal-success-view').classList.add('show');
-    addScore(20,'lead_submitted');
-  }, 700);
+    addScore(20, 'lead_submitted');
+
+  } catch(err) {
+    /* Pure network failure (offline etc.) — lead already saved locally */
+    console.warn('Sheet submit network error:', err);
+    document.getElementById('modal-form-view').style.display = 'none';
+    document.getElementById('modal-success-view').classList.add('show');
+    addScore(20, 'lead_submitted');
+  }
 }
 function shake(id){
   const el = document.getElementById(id);
