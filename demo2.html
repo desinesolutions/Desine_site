@@ -1465,10 +1465,14 @@ function openQuickView(id){
   // Image
   document.getElementById('qv-img-bg').className = `qv-img-bg ${p.bg}`;
 
-  // Sizes
-  document.getElementById('qv-sizes').innerHTML = p.sizes.map(s=>`
-    <button class="size-btn${p.oos.includes(s)?' oos':''}" onclick="${p.oos.includes(s)?'showToast(\"Out of stock\")':'selectSize(this,\"'+s+'\")'}">${s}</button>
-  `).join('');
+  // Sizes — use data-size attribute, no inline quote escaping issues
+  const firstAvailableSize = p.sizes.find(s => !p.oos.includes(s)) || p.sizes[0];
+  selectedSize = firstAvailableSize; // auto-select first available
+  document.getElementById('qv-sizes').innerHTML = p.sizes.map(s => {
+    const isOos = p.oos.includes(s);
+    const isSelected = s === firstAvailableSize;
+    return `<button class="size-btn${isOos?' oos':''}${isSelected?' selected':''}" data-size="${s}" onclick="handleSizeClick(this)">${s}</button>`;
+  }).join('');
 
   // Colors
   document.getElementById('qv-colors').innerHTML = p.colors.map((c,i)=>`
@@ -1494,11 +1498,13 @@ function closeQuickView(){
   document.body.style.overflow = '';
 }
 
-function selectSize(btn, size){
+function handleSizeClick(btn){
+  if(btn.classList.contains('oos')){ showToast('Out of stock'); return; }
   document.querySelectorAll('#qv-sizes .size-btn').forEach(b=>b.classList.remove('selected'));
   btn.classList.add('selected');
-  selectedSize = size;
+  selectedSize = btn.dataset.size;
 }
+function selectSize(btn, size){ handleSizeClick(btn); }
 function selectColor(dot, idx, name){
   document.querySelectorAll('#qv-colors .color-dot').forEach(d=>d.classList.remove('selected'));
   dot.classList.add('selected');
@@ -1511,13 +1517,8 @@ function changeQvQty(delta){
 }
 function addFromQV(){
   if(!currentQV) return;
-  if(!selectedSize && currentQV.sizes.length>1){
-    showToast('Please select a size first!');
-    document.getElementById('qv-sizes').style.animation='none';
-    void document.getElementById('qv-sizes').offsetWidth;
-    document.getElementById('qv-sizes').style.animation='shake .3s ease';
-    return;
-  }
+  // Size is always pre-selected; if somehow empty, use first size
+  if(!selectedSize && currentQV.sizes.length > 0) selectedSize = currentQV.sizes[0];
   const sz = selectedSize || currentQV.sizes[0];
   addToCart(currentQV, sz, selectedColor, qvQty);
 }
